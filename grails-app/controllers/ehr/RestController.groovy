@@ -48,7 +48,8 @@ class RestController {
     */
    def commit(String ehrId, String auditSystemId, String auditCommitter)
    {
-      //println "commit "+ params.versions
+      println "commit de "+ params.versions.size() +" versions"
+      log.info( "commit received "+ params.versions.size() + " versions"  )
       
       //new File('params_debug.log') << params.toString()
       
@@ -68,9 +69,11 @@ class RestController {
                code('ISIS_EHR_SERVER::COMMIT::ERRORS::400') // sys::service::concept::code
             }
          }
-         
          return
       }
+      
+      log.info( "ehrid present" )
+      println "ehrid present"
       
       // 2. versions deben venir 1 por lo menos haber una
       if (!params.versions)
@@ -89,6 +92,9 @@ class RestController {
          return
       }
       
+      log.info( "versions param present" )
+      println "versions param present"
+      
       def xmlVersions = params.list('versions')
       if (xmlVersions.size() == 0)
       {
@@ -106,7 +112,8 @@ class RestController {
          return
       }
       
-      
+      log.info( "some versions committed" )
+      println "some versions committed"
       
       def ehr = Ehr.findByEhrId(ehrId)
       
@@ -127,6 +134,9 @@ class RestController {
          return
       }
       
+      log.info( "ehr exists" )
+      println "ehr exists"
+      
       // ========================================================
       // FIXME: MOVER ESTA LOGICA A UN SERVICIO
       
@@ -135,6 +145,7 @@ class RestController {
       def contributions = []
       try
       {
+         // null if there are xml validation errors
          contributions = xmlService.parseVersions(
             ehr, xmlVersions, 
             auditSystemId, new Date(), auditCommitter, // time_committed is calculated by the server to be compliant with the specs ** (see below)
@@ -150,19 +161,49 @@ class RestController {
           * Note that this will override the time_committed from the version in the XML received.
           */
          
+         // There are XML validation errors, the whole commit should fail.
+         if (!contributions)
+         {
+            // Parsing error
+            render(contentType:"text/xml", encoding:"UTF-8") {
+               result {
+                  type {
+                     code('AR')                         // application reject
+                     codeSystem('HL7::TABLES::TABLE_8') // http://amisha.pragmaticdata.com/~gunther/oldhtml/tables.html
+                  }
+                  message('Some versions do not validate against the XSD')
+                  details {
+                     
+                     xmlService.validationErrors.each { i, errorList ->
+                        errorList.each { errorText ->
+                           
+                           item('Error for version #'+ i +' '+ errorText)
+                        }
+                     }
+                  }
+               }
+            }
+            return
+         }
+         
          // TEST: in general only one contribution will be created from a commit
-         if (contributions.size() > 1) println "WARNING: there is more than one contribution from a commit"
+         if (contributions.size() > 1)
+         {
+            log.info("WARNING: there is more than one contribution from a commit")
+            println "WARNING: there is more than one contribution from a commit"
+         }
       }
       catch (Exception e)
       {
-         // FIXME: log
-         println e.message // FIXME: the error might be more specific, see which errors we can have.
+         log.error( e.message +" "+ e.getClass().getSimpleName() ) // FIXME: the error might be more specific, see which errors we can have.
+         
+         println e.message +" "+ e.getClass().getSimpleName()
          
          // Parsing error
          render(contentType:"text/xml", encoding:"UTF-8") {
             result {
                type {
-                  code('AA')                         // application reject
+                  code('AR')                         // application reject
                   codeSystem('HL7::TABLES::TABLE_8') // http://amisha.pragmaticdata.com/~gunther/oldhtml/tables.html
                }
                message('Bad content, could not parse compositions ('+ e.message +')')
@@ -172,6 +213,9 @@ class RestController {
          }
          return
       }
+      
+      log.error( "after parsing" )
+      println "after parsing"
       
       // test
       // muestra los uids en vacio porque el escritor de xml es lazy,
@@ -295,7 +339,6 @@ class RestController {
             
          } // contribution.versions.each
       } // contributions.each
-      
       
       //render(text:'<result><code>ok</code><message>EHR guardado</message></result>', contentType:"text/xml", encoding:"UTF-8")
       render(contentType:"text/xml", encoding:"UTF-8") {

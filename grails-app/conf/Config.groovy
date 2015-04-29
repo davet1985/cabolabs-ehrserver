@@ -84,8 +84,7 @@ log4j = {
    // trace 'org.hibernate.type'
    // debug 'org.hibernate.SQL'
 
-    error  'org.codehaus.groovy.grails.web.servlet',        // controllers
-           'org.codehaus.groovy.grails.web.pages',          // GSP
+    error  'org.codehaus.groovy.grails.web.pages',          // GSP
            'org.codehaus.groovy.grails.web.sitemesh',       // layouts
            'org.codehaus.groovy.grails.web.mapping.filter', // URL mapping
            'org.codehaus.groovy.grails.web.mapping',        // URL mapping
@@ -95,12 +94,17 @@ log4j = {
            'org.springframework'
            //'org.hibernate',
            //'net.sf.ehcache.hibernate'
+           
+    info 'org.codehaus.groovy.grails.web.servlet'        // controllers
 }
 
+def PS = System.getProperty("file.separator")
+
 app {
-   composition_repo = "compositions\\" // FIXME: use OS independent file path separator
-   version_repo = "versions\\"
-   version_xsd = "xsd\\Version.xsd"
+   composition_repo = "compositions" + PS //"compositions\\" // FIXME: use OS independent file path separator
+   version_repo = "versions" + PS // "versions\\"
+   version_xsd = "xsd"+ PS +"Version.xsd"
+   opt_repo = "opts" + PS
    
    l10n { // localization
       
